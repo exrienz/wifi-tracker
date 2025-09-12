@@ -1,0 +1,297 @@
+{% extends "base.html" %}
+
+{% block title %}{{ environment.name }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2><i class="bi bi-wifi"></i> {{ environment.name }}</h2>
+        <p class="text-muted mb-0">
+            Created by {{ environment.admin.username }} on {{ environment.created_at.strftime('%Y-%m-%d %H:%M') }}
+        </p>
+    </div>
+    <a href="{{ url_for('main.upload_csv', environment_id=environment.id) }}" class="btn btn-success">
+        <i class="bi bi-upload"></i> Upload CSV
+    </a>
+</div>
+
+<!-- Statistics Cards -->
+<div class="row mb-4">
+    <div class="col-md-4">
+        <div class="card bg-primary text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h5 class="card-title">Total Scans</h5>
+                        <h2 class="mb-0">{{ total_scans }}</h2>
+                    </div>
+                    <i class="bi bi-list-ol" style="font-size: 2.5rem; opacity: 0.7;"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card bg-success text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h5 class="card-title">Unique Networks</h5>
+                        <h2 class="mb-0">{{ unique_networks }}</h2>
+                    </div>
+                    <i class="bi bi-wifi" style="font-size: 2.5rem; opacity: 0.7;"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card bg-info text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h5 class="card-title">Recent Uploads</h5>
+                        <h2 class="mb-0">{{ recent_uploads|length }}</h2>
+                    </div>
+                    <i class="bi bi-clock-history" style="font-size: 2.5rem; opacity: 0.7;"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Scan Data Table -->
+{% if scans %}
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="card-title mb-0">
+            <i class="bi bi-table"></i> Wireless Scans
+        </h5>
+        <div>
+            <button id="bulk-rogue-yes" class="btn btn-sm btn-warning me-2" disabled>
+                <i class="bi bi-exclamation-triangle"></i> Mark Selected as Rogue
+            </button>
+            <button id="bulk-rogue-no" class="btn btn-sm btn-success me-2" disabled>
+                <i class="bi bi-check-circle"></i> Mark Selected as Safe
+            </button>
+            <a href="{{ url_for('main.export_html', environment_id=environment.id) }}" class="btn btn-sm btn-info">
+                <i class="bi bi-download"></i> Export HTML
+            </a>
+        </div>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-striped table-hover" id="scansTable">
+                <thead>
+                    <tr>
+                        <th>
+                            <input type="checkbox" id="selectAll" class="form-check-input">
+                        </th>
+                        <th>BSSID</th>
+                        <th>SSID</th>
+                        <th>Quality</th>
+                        <th>Signal</th>
+                        <th>Channel</th>
+                        <th>Encryption</th>
+                        <th>Timestamp</th>
+                        <th>Remarks</th>
+                        <th>Rogue AP</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for scan in scans %}
+                    <tr>
+                        <td>
+                            <input type="checkbox" class="form-check-input scan-checkbox" value="{{ scan.id }}">
+                        </td>
+                        <td><code>{{ scan.bssid }}</code></td>
+                        <td>
+                            <strong>{{ scan.ssid if scan.ssid else '<Hidden>' }}</strong>
+                        </td>
+                        <td>
+                            {% if scan.quality %}
+                            <span class="badge bg-{{ 'success' if scan.quality > 70 else 'warning' if scan.quality > 40 else 'danger' }}">
+                                {{ scan.quality }}%
+                            </span>
+                            {% else %}
+                            <span class="text-muted">N/A</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if scan.signal %}
+                            <span class="badge bg-{{ 'success' if scan.signal > -50 else 'warning' if scan.signal > -70 else 'danger' }}">
+                                {{ scan.signal }} dBm
+                            </span>
+                            {% else %}
+                            <span class="text-muted">N/A</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ scan.channel or 'N/A' }}</td>
+                        <td>
+                            <span class="badge bg-{{ 'success' if scan.encryption and 'WPA' in scan.encryption else 'warning' if scan.encryption and 'WEP' in scan.encryption else 'danger' }}">
+                                {{ scan.encryption or 'Open' }}
+                            </span>
+                        </td>
+                        <td>
+                            <small>{{ scan.timestamp.strftime('%Y-%m-%d %H:%M:%S') }}</small>
+                        </td>
+                        <td>
+                            {% if scan.remarks %}
+                            <span class="text-truncate d-inline-block" style="max-width: 150px;" title="{{ scan.remarks }}">
+                                {{ scan.remarks }}
+                            </span>
+                            {% else %}
+                            <span class="text-muted">None</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="btn-group" role="group" aria-label="Rogue AP Status">
+                                <input type="radio" class="btn-check rogue-radio" name="rogue_{{ scan.id }}" id="rogue_yes_{{ scan.id }}" value="yes" data-scan-id="{{ scan.id }}" {{ 'checked' if scan.rogue_ap_potential else '' }}>
+                                <label class="btn btn-outline-danger btn-sm" for="rogue_yes_{{ scan.id }}">Yes</label>
+                                
+                                <input type="radio" class="btn-check rogue-radio" name="rogue_{{ scan.id }}" id="rogue_no_{{ scan.id }}" value="no" data-scan-id="{{ scan.id }}" {{ 'checked' if not scan.rogue_ap_potential else '' }}>
+                                <label class="btn btn-outline-success btn-sm" for="rogue_no_{{ scan.id }}">No</label>
+                            </div>
+                        </td>
+                        <td>
+                            <a href="{{ url_for('main.edit_remarks', scan_id=scan.id) }}" 
+                               class="btn btn-sm btn-outline-primary" title="Edit remarks">
+                                <i class="bi bi-pencil"></i>
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+// Handle individual rogue AP radio button changes
+document.querySelectorAll('.rogue-radio').forEach(radio => {
+    radio.addEventListener('change', function() {
+        const scanId = this.dataset.scanId;
+        const isRogue = this.value === 'yes';
+        
+        fetch(`{{ url_for('main.update_rogue_status') }}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token() }}'
+            },
+            body: JSON.stringify({
+                scan_id: scanId,
+                rogue_ap_potential: isRogue
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (!data.success) {
+                console.error('Error updating rogue status:', data.error);
+                // Revert the radio button state
+                document.querySelector(`input[name="rogue_${scanId}"][value="${isRogue ? 'no' : 'yes'}"]`).checked = true;
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            // Revert the radio button state
+            document.querySelector(`input[name="rogue_${scanId}"][value="${isRogue ? 'no' : 'yes'}"]`).checked = true;
+        });
+    });
+});
+
+// Handle select all checkbox
+document.getElementById('selectAll').addEventListener('change', function() {
+    const checkboxes = document.querySelectorAll('.scan-checkbox');
+    checkboxes.forEach(checkbox => {
+        checkbox.checked = this.checked;
+    });
+    updateBulkButtons();
+});
+
+// Handle individual checkbox changes
+document.querySelectorAll('.scan-checkbox').forEach(checkbox => {
+    checkbox.addEventListener('change', updateBulkButtons);
+});
+
+// Update bulk action button states
+function updateBulkButtons() {
+    const selectedCheckboxes = document.querySelectorAll('.scan-checkbox:checked');
+    const bulkRogueYes = document.getElementById('bulk-rogue-yes');
+    const bulkRogueNo = document.getElementById('bulk-rogue-no');
+    
+    if (selectedCheckboxes.length > 0) {
+        bulkRogueYes.disabled = false;
+        bulkRogueNo.disabled = false;
+    } else {
+        bulkRogueYes.disabled = true;
+        bulkRogueNo.disabled = true;
+    }
+}
+
+// Handle bulk rogue AP updates
+document.getElementById('bulk-rogue-yes').addEventListener('click', function() {
+    bulkUpdateRogueStatus(true);
+});
+
+document.getElementById('bulk-rogue-no').addEventListener('click', function() {
+    bulkUpdateRogueStatus(false);
+});
+
+function bulkUpdateRogueStatus(isRogue) {
+    const selectedCheckboxes = document.querySelectorAll('.scan-checkbox:checked');
+    const scanIds = Array.from(selectedCheckboxes).map(cb => cb.value);
+    
+    if (scanIds.length === 0) return;
+    
+    fetch(`{{ url_for('main.bulk_update_rogue_status') }}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token() }}'
+        },
+        body: JSON.stringify({
+            scan_ids: scanIds,
+            rogue_ap_potential: isRogue
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Update the radio buttons for selected scans
+            scanIds.forEach(scanId => {
+                document.querySelector(`input[name="rogue_${scanId}"][value="${isRogue ? 'yes' : 'no'}"]`).checked = true;
+            });
+            // Clear selections
+            document.querySelectorAll('.scan-checkbox').forEach(cb => cb.checked = false);
+            document.getElementById('selectAll').checked = false;
+            updateBulkButtons();
+        } else {
+            console.error('Error updating bulk rogue status:', data.error);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+    });
+}
+</script>
+{% else %}
+<div class="card">
+    <div class="card-body text-center py-5">
+        <i class="bi bi-wifi-off text-muted" style="font-size: 4rem;"></i>
+        <h4 class="text-muted mt-3">No scan data found</h4>
+        <p class="text-muted">
+            <a href="{{ url_for('main.upload_csv', environment_id=environment.id) }}" class="btn btn-success">
+                <i class="bi bi-upload"></i> Upload your first CSV file
+            </a>
+        </p>
+    </div>
+</div>
+{% endif %}
+
+<div class="mt-3">
+    <a href="{{ url_for('main.environments') }}" class="btn btn-secondary">
+        <i class="bi bi-arrow-left"></i> Back to Environments
+    </a>
+</div>
+{% endblock %}

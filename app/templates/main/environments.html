@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+
+{% block title %}Environments{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="bi bi-list-ul"></i> Environments</h2>
+    {% if current_user.is_admin %}
+    <a href="{{ url_for('main.new_environment') }}" class="btn btn-primary">
+        <i class="bi bi-plus-circle"></i> New Environment
+    </a>
+    {% endif %}
+</div>
+
+{% if environments %}
+<div class="row">
+    {% for environment in environments %}
+    <div class="col-md-6 col-lg-4 mb-4">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0">{{ environment.name }}</h5>
+                {% if current_user.is_admin %}
+                <div class="dropdown">
+                    <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                        <i class="bi bi-three-dots"></i>
+                    </button>
+                    <ul class="dropdown-menu">
+                        <li>
+                            <form method="POST" action="{{ url_for('main.delete_environment', environment_id=environment.id) }}" 
+                                  onsubmit="return confirm('Are you sure you want to delete this environment? All scan data will be lost.');">
+                                <button type="submit" class="dropdown-item text-danger">
+                                    <i class="bi bi-trash"></i> Delete
+                                </button>
+                            </form>
+                        </li>
+                    </ul>
+                </div>
+                {% endif %}
+            </div>
+            <div class="card-body">
+                <div class="row mb-3">
+                    <div class="col-6">
+                        <div class="text-center">
+                            <div class="h4 text-primary mb-0">{{ env_stats[environment.id].total_scans }}</div>
+                            <small class="text-muted">Total Scans</small>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="text-center">
+                            <div class="h4 text-info mb-0">{{ env_stats[environment.id].unique_networks }}</div>
+                            <small class="text-muted">Unique Networks</small>
+                        </div>
+                    </div>
+                </div>
+                
+                <p class="card-text">
+                    <small class="text-muted">
+                        <i class="bi bi-person"></i> Created by {{ environment.admin.username }}<br>
+                        <i class="bi bi-calendar"></i> {{ environment.created_at.strftime('%Y-%m-%d %H:%M') }}<br>
+                        {% if env_stats[environment.id].last_update %}
+                        <i class="bi bi-cloud-upload"></i> Last update: {{ env_stats[environment.id].last_update.strftime('%Y-%m-%d %H:%M') }}<br>
+                        {% else %}
+                        <i class="bi bi-cloud-upload"></i> No uploads yet<br>
+                        {% endif %}
+                    </small>
+                </p>
+                <div class="d-flex justify-content-between">
+                    <a href="{{ url_for('main.environment_detail', environment_id=environment.id) }}" 
+                       class="btn btn-primary btn-sm">
+                        <i class="bi bi-eye"></i> View Details
+                    </a>
+                    <a href="{{ url_for('main.upload_csv', environment_id=environment.id) }}" 
+                       class="btn btn-success btn-sm">
+                        <i class="bi bi-upload"></i> Upload CSV
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="text-center py-5">
+    <i class="bi bi-folder-x text-muted" style="font-size: 4rem;"></i>
+    <h4 class="text-muted mt-3">No environments found</h4>
+    <p class="text-muted">
+        {% if current_user.is_admin %}
+        <a href="{{ url_for('main.new_environment') }}" class="btn btn-primary">
+            <i class="bi bi-plus-circle"></i> Create your first environment
+        </a>
+        {% else %}
+        Contact an administrator to create environments.
+        {% endif %}
+    </p>
+</div>
+{% endif %}
+{% endblock %}

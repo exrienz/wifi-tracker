@@ -1,0 +1,205 @@
+{% extends "base.html" %}
+
+{% block title %}Admin Dashboard{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="bi bi-gear"></i> Admin Dashboard</h2>
+</div>
+
+<!-- System Statistics -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card bg-primary text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h6 class="card-title">Total Users</h6>
+                        <h3 class="mb-0">{{ all_users|length }}</h3>
+                    </div>
+                    <i class="bi bi-people" style="font-size: 2rem; opacity: 0.7;"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-warning text-dark">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h6 class="card-title">Pending Approval</h6>
+                        <h3 class="mb-0">{{ pending_users|length }}</h3>
+                    </div>
+                    <i class="bi bi-clock" style="font-size: 2rem; opacity: 0.7;"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-success text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h6 class="card-title">Environments</h6>
+                        <h3 class="mb-0">{{ total_environments }}</h3>
+                    </div>
+                    <i class="bi bi-list-ul" style="font-size: 2rem; opacity: 0.7;"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-info text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h6 class="card-title">Total Scans</h6>
+                        <h3 class="mb-0">{{ total_scans }}</h3>
+                    </div>
+                    <i class="bi bi-wifi" style="font-size: 2rem; opacity: 0.7;"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Pending User Approvals -->
+{% if pending_users %}
+<div class="card mb-4">
+    <div class="card-header">
+        <h5 class="card-title mb-0">
+            <i class="bi bi-person-check"></i> Pending User Approvals
+            <span class="badge bg-warning text-dark ms-2">{{ pending_users|length }}</span>
+        </h5>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Username</th>
+                        <th>Registration Date</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for user in pending_users %}
+                    <tr>
+                        <td>
+                            <i class="bi bi-person"></i> {{ user.username }}
+                        </td>
+                        <td>{{ user.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                        <td>
+                            <form method="POST" class="d-inline" action="{{ url_for('main.approve_user') }}">
+                                {{ approval_forms[user.id].hidden_tag() }}
+                                {{ approval_forms[user.id].user_id }}
+                                <button type="submit" class="btn btn-sm btn-success me-2">
+                                    <i class="bi bi-check-circle"></i> Approve
+                                </button>
+                            </form>
+                            <form method="POST" class="d-inline" action="{{ url_for('main.reject_user') }}"
+                                  onsubmit="return confirm('Are you sure you want to reject and delete this user?');">
+                                {{ rejection_forms[user.id].hidden_tag() }}
+                                {{ rejection_forms[user.id].user_id }}
+                                <button type="submit" class="btn btn-sm btn-danger">
+                                    <i class="bi bi-x-circle"></i> Reject
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- All Users -->
+<div class="card">
+    <div class="card-header">
+        <h5 class="card-title mb-0">
+            <i class="bi bi-people"></i> All Users
+        </h5>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Username</th>
+                        <th>Role</th>
+                        <th>Status</th>
+                        <th>Registration Date</th>
+                        <th>Uploads</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for user in all_users %}
+                    <tr>
+                        <td>
+                            <i class="bi bi-person"></i> {{ user.username }}
+                            {% if user.id == current_user.id %}
+                            <span class="badge bg-secondary ms-1">You</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if user.is_admin %}
+                            <span class="badge bg-warning text-dark">
+                                <i class="bi bi-shield-check"></i> Admin
+                            </span>
+                            {% else %}
+                            <span class="badge bg-primary">
+                                <i class="bi bi-person"></i> User
+                            </span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if user.is_approved %}
+                            <span class="badge bg-success">
+                                <i class="bi bi-check-circle"></i> Approved
+                            </span>
+                            {% else %}
+                            <span class="badge bg-warning text-dark">
+                                <i class="bi bi-clock"></i> Pending
+                            </span>
+                            {% endif %}
+                        </td>
+                        <td>{{ user.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                        <td>
+                            <span class="badge bg-info">{{ user.wireless_scans|length }}</span>
+                        </td>
+                        <td>
+                            {% if user.id != current_user.id and user.id in role_forms %}
+                            <form method="POST" class="d-inline" action="{{ url_for('main.assign_role') }}"
+                                  onsubmit="return confirm('Are you sure you want to change this user\'s role?');">
+                                {{ role_forms[user.id].hidden_tag() }}
+                                {{ role_forms[user.id].user_id }}
+                                <div class="input-group input-group-sm" style="max-width: 150px;">
+                                    {{ role_forms[user.id].role(class="form-select form-select-sm") }}
+                                    <button type="submit" class="btn btn-outline-primary btn-sm">
+                                        <i class="bi bi-arrow-up-right"></i>
+                                    </button>
+                                </div>
+                            </form>
+                            {% else %}
+                                {% if user.id == current_user.id %}
+                                <small class="text-muted">Current User</small>
+                                {% endif %}
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<div class="mt-3">
+    <a href="{{ url_for('main.environments') }}" class="btn btn-secondary">
+        <i class="bi bi-arrow-left"></i> Back to Environments
+    </a>
+</div>
+{% endblock %}

@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+
+{% block title %}Edit Remarks{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h4 class="card-title mb-0">
+                    <i class="bi bi-pencil"></i> Edit Remarks
+                </h4>
+            </div>
+            <div class="card-body">
+                <!-- Scan Information -->
+                <div class="alert alert-light border">
+                    <h6><i class="bi bi-wifi"></i> Scan Information:</h6>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <strong>BSSID:</strong> <code>{{ scan.bssid }}</code><br>
+                            <strong>SSID:</strong> {{ scan.ssid or '<Hidden>' }}<br>
+                            <strong>Channel:</strong> {{ scan.channel or 'N/A' }}
+                        </div>
+                        <div class="col-md-6">
+                            <strong>Quality:</strong> 
+                            {% if scan.quality %}
+                            <span class="badge bg-{{ 'success' if scan.quality > 70 else 'warning' if scan.quality > 40 else 'danger' }}">
+                                {{ scan.quality }}%
+                            </span>
+                            {% else %}N/A{% endif %}<br>
+                            
+                            <strong>Signal:</strong>
+                            {% if scan.signal %}
+                            <span class="badge bg-{{ 'success' if scan.signal > -50 else 'warning' if scan.signal > -70 else 'danger' }}">
+                                {{ scan.signal }} dBm
+                            </span>
+                            {% else %}N/A{% endif %}<br>
+                            
+                            <strong>Encryption:</strong>
+                            <span class="badge bg-{{ 'success' if 'WPA' in scan.encryption else 'warning' if 'WEP' in scan.encryption else 'danger' }}">
+                                {{ scan.encryption or 'Open' }}
+                            </span>
+                        </div>
+                    </div>
+                    <div class="mt-2">
+                        <strong>Timestamp:</strong> {{ scan.timestamp.strftime('%Y-%m-%d %H:%M:%S') }}<br>
+                        <strong>Environment:</strong> {{ scan.environment.name }}<br>
+                        <strong>Uploaded by:</strong> {{ scan.uploader.username }} on {{ scan.uploaded_at.strftime('%Y-%m-%d %H:%M') }}
+                    </div>
+                </div>
+
+                <form method="POST">
+                    {{ form.hidden_tag() }}
+                    
+                    <div class="mb-3">
+                        {{ form.remarks.label(class="form-label") }}
+                        {{ form.remarks(class="form-control" + (" is-invalid" if form.remarks.errors else ""), 
+                                       rows="4", 
+                                       placeholder="Add any notes or observations about this wireless network scan...") }}
+                        {% if form.remarks.errors %}
+                        <div class="invalid-feedback">
+                            {% for error in form.remarks.errors %}
+                            <div>{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                        <div class="form-text">Maximum 1000 characters</div>
+                    </div>
+                    
+                    <div class="d-flex justify-content-between">
+                        <a href="{{ url_for('main.environment_detail', environment_id=scan.environment_id) }}" 
+                           class="btn btn-secondary">
+                            <i class="bi bi-arrow-left"></i> Back to Environment
+                        </a>
+                        <div>
+                            <button type="submit" name="remarks" value="" class="btn btn-outline-danger me-2">
+                                <i class="bi bi-x-circle"></i> Clear Remarks
+                            </button>
+                            {{ form.submit(class="btn btn-primary") }}
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
