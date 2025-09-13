@@ -85,26 +85,52 @@
                         <th>
                             <input type="checkbox" id="selectAll" class="form-check-input">
                         </th>
-                        <th>BSSID</th>
-                        <th>SSID</th>
-                        <th>Quality</th>
-                        <th>Signal</th>
-                        <th>Channel</th>
-                        <th>Encryption</th>
-                        <th>Timestamp</th>
-                        <th>Remarks</th>
-                        <th>Rogue AP</th>
+                        <th class="sortable" data-column="bssid" style="cursor: pointer;">
+                            BSSID <i class="bi bi-chevron-expand sort-icon"></i>
+                        </th>
+                        <th class="sortable" data-column="ssid" style="cursor: pointer;">
+                            SSID <i class="bi bi-chevron-expand sort-icon"></i>
+                        </th>
+                        <th class="sortable" data-column="quality" style="cursor: pointer;">
+                            Quality <i class="bi bi-chevron-expand sort-icon"></i>
+                        </th>
+                        <th class="sortable" data-column="signal" style="cursor: pointer;">
+                            Signal <i class="bi bi-chevron-expand sort-icon"></i>
+                        </th>
+                        <th class="sortable" data-column="channel" style="cursor: pointer;">
+                            Channel <i class="bi bi-chevron-expand sort-icon"></i>
+                        </th>
+                        <th class="sortable" data-column="encryption" style="cursor: pointer;">
+                            Encryption <i class="bi bi-chevron-expand sort-icon"></i>
+                        </th>
+                        <th class="sortable" data-column="timestamp" style="cursor: pointer;">
+                            Timestamp <i class="bi bi-chevron-expand sort-icon"></i>
+                        </th>
+                        <th class="sortable" data-column="remarks" style="cursor: pointer;">
+                            Remarks <i class="bi bi-chevron-expand sort-icon"></i>
+                        </th>
+                        <th class="sortable" data-column="rogue" style="cursor: pointer;">
+                            Rogue AP <i class="bi bi-chevron-expand sort-icon"></i>
+                        </th>
                         <th>Actions</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for scan in scans %}
-                    <tr>
+                    <tr data-bssid="{{ scan.bssid }}" 
+                        data-ssid="{{ scan.ssid or '' }}" 
+                        data-quality="{{ scan.quality or 0 }}" 
+                        data-signal="{{ scan.signal or -999 }}" 
+                        data-channel="{{ scan.channel or 0 }}" 
+                        data-encryption="{{ scan.encryption or 'Open' }}" 
+                        data-timestamp="{{ scan.timestamp.timestamp() }}" 
+                        data-remarks="{{ scan.remarks or '' }}" 
+                        data-rogue="{{ 'yes' if scan.rogue_ap_potential else 'no' }}">
                         <td>
                             <input type="checkbox" class="form-check-input scan-checkbox" value="{{ scan.id }}">
                         </td>
-                        <td><code>{{ scan.bssid }}</code></td>
-                        <td>
+                        <td style="word-break: break-all;"><code>{{ scan.bssid }}</code></td>
+                        <td style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="{{ scan.ssid if scan.ssid else 'Hidden' }}">
                             <strong>{{ scan.ssid if scan.ssid else '<Hidden>' }}</strong>
                         </td>
                         <td>
@@ -134,17 +160,15 @@
                         <td>
                             <small>{{ scan.timestamp.strftime('%Y-%m-%d %H:%M:%S') }}</small>
                         </td>
-                        <td>
+                        <td style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="{{ scan.remarks or 'None' }}">
                             {% if scan.remarks %}
-                            <span class="text-truncate d-inline-block" style="max-width: 150px;" title="{{ scan.remarks }}">
-                                {{ scan.remarks }}
-                            </span>
+                            {{ scan.remarks }}
                             {% else %}
                             <span class="text-muted">None</span>
                             {% endif %}
                         </td>
                         <td>
-                            <div class="btn-group" role="group" aria-label="Rogue AP Status">
+                            <div class="btn-group btn-group-sm" role="group" aria-label="Rogue AP Status">
                                 <input type="radio" class="btn-check rogue-radio" name="rogue_{{ scan.id }}" id="rogue_yes_{{ scan.id }}" value="yes" data-scan-id="{{ scan.id }}" {{ 'checked' if scan.rogue_ap_potential else '' }}>
                                 <label class="btn btn-outline-danger btn-sm" for="rogue_yes_{{ scan.id }}">Yes</label>
                                 
@@ -167,6 +191,100 @@
 </div>
 
 <script>
+// Table sorting functionality
+let currentSort = { column: null, direction: 'asc' };
+
+function sortTable(column) {
+    const table = document.getElementById('scansTable');
+    const tbody = table.querySelector('tbody');
+    const rows = Array.from(tbody.querySelectorAll('tr'));
+    
+    // Determine sort direction
+    if (currentSort.column === column) {
+        currentSort.direction = currentSort.direction === 'asc' ? 'desc' : 'asc';
+    } else {
+        currentSort.direction = 'asc';
+        currentSort.column = column;
+    }
+    
+    // Update sort indicators
+    document.querySelectorAll('.sort-icon').forEach(icon => {
+        icon.className = 'bi bi-chevron-expand sort-icon';
+    });
+    
+    const currentHeader = document.querySelector(`[data-column="${column}"] .sort-icon`);
+    if (currentHeader) {
+        currentHeader.className = currentSort.direction === 'asc' ? 
+            'bi bi-chevron-up sort-icon' : 'bi bi-chevron-down sort-icon';
+    }
+    
+    // Sort rows
+    rows.sort((a, b) => {
+        let aVal, bVal;
+        
+        switch (column) {
+            case 'bssid':
+                aVal = a.dataset.bssid;
+                bVal = b.dataset.bssid;
+                break;
+            case 'ssid':
+                aVal = a.dataset.ssid.toLowerCase();
+                bVal = b.dataset.ssid.toLowerCase();
+                break;
+            case 'quality':
+                aVal = parseInt(a.dataset.quality) || 0;
+                bVal = parseInt(b.dataset.quality) || 0;
+                break;
+            case 'signal':
+                aVal = parseInt(a.dataset.signal) || -999;
+                bVal = parseInt(b.dataset.signal) || -999;
+                break;
+            case 'channel':
+                aVal = parseInt(a.dataset.channel) || 0;
+                bVal = parseInt(b.dataset.channel) || 0;
+                break;
+            case 'encryption':
+                aVal = a.dataset.encryption.toLowerCase();
+                bVal = b.dataset.encryption.toLowerCase();
+                break;
+            case 'timestamp':
+                aVal = parseFloat(a.dataset.timestamp);
+                bVal = parseFloat(b.dataset.timestamp);
+                break;
+            case 'remarks':
+                aVal = a.dataset.remarks.toLowerCase();
+                bVal = b.dataset.remarks.toLowerCase();
+                break;
+            case 'rogue':
+                aVal = a.dataset.rogue;
+                bVal = b.dataset.rogue;
+                break;
+            default:
+                return 0;
+        }
+        
+        let comparison = 0;
+        if (typeof aVal === 'string') {
+            comparison = aVal.localeCompare(bVal);
+        } else {
+            comparison = aVal - bVal;
+        }
+        
+        return currentSort.direction === 'asc' ? comparison : -comparison;
+    });
+    
+    // Re-append sorted rows
+    rows.forEach(row => tbody.appendChild(row));
+}
+
+// Add click event listeners to sortable headers
+document.querySelectorAll('.sortable').forEach(header => {
+    header.addEventListener('click', () => {
+        const column = header.dataset.column;
+        sortTable(column);
+    });
+});
+
 // Handle individual rogue AP radio button changes
 document.querySelectorAll('.rogue-radio').forEach(radio => {
     radio.addEventListener('change', function() {
